@@ -5,12 +5,13 @@ import { fileURLToPath } from 'url'
 import { dirname } from 'path'
 import path from 'path'
 import connectDB from './config/db.js'
+import authRoutes from './routes/authRoutes.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
 dotenv.config({ path: path.join(__dirname, '.env') })
-console.log('MONGO_URI:', process.env.MONGO_URI)
+
 connectDB()
 
 const app = express()
@@ -21,6 +22,8 @@ app.use(express.json())
 app.get('/', (req, res) => {
     res.send('FrankHub API is running...')
 })
+
+app.use('/api/auth', authRoutes)
 
 const PORT = process.env.PORT || 5000
 
