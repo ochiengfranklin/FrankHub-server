@@ -4,6 +4,8 @@ import dotenv from 'dotenv'
 import { fileURLToPath } from 'url'
 import { dirname } from 'path'
 import path from 'path'
+import session from 'express-session'
+import passport from './config/passport.js'
 import connectDB from './config/db.js'
 import authRoutes from './routes/authRoutes.js'
 import productRoutes from './routes/productRoutes.js'
@@ -22,7 +24,17 @@ app.use(cors({
     origin: process.env.CLIENT_URL || 'http://localhost:5173',
     credentials: true,
 }))
+
 app.use(express.json())
+
+app.use(session({
+    secret: process.env.JWT_SECRET,
+    resave: false,
+    saveUninitialized: false,
+}))
+
+app.use(passport.initialize())
+app.use(passport.session())
 
 app.get('/', (req, res) => {
     res.send('FrankHub API is running...')
