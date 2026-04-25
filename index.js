@@ -10,6 +10,9 @@ import connectDB from './config/db.js'
 import authRoutes from './routes/authRoutes.js'
 import productRoutes from './routes/productRoutes.js'
 import orderRoutes from './routes/orderRoutes.js'
+import rateLimit from 'express-rate-limit'
+import mongoSanitize from 'express-mongo-sanitize'
+import xss from 'xss-clean'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -26,6 +29,28 @@ app.use(cors({
 }))
 
 app.use(express.json())
+
+// Rate limiting
+const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // max 100 requests per 15 minutes
+    message: { message: 'Too many requests, please try again later.' },
+})
+
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 10, // max 10 login/register attempts per 15 minutes
+    message: { message: 'Too many attempts, please try again later.' },
+})
+
+// Apply rate limiting
+app.use('/api', limiter)
+app.use('/api/auth/login', authLimiter)
+app.use('/api/auth/register', authLimiter)
+
+// Sanitization
+app.use(mongoSanitize()) // prevent MongoDB operator injection
+app.use(xss()) // prevent XSS attacks
 
 app.use(session({
     secret: process.env.JWT_SECRET,
