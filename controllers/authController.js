@@ -2,6 +2,8 @@ import User from '../models/User.js'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import Newsletter from '../models/Newsletter.js'
+import crypto from 'crypto'
+import nodemailer from 'nodemailer'
 
 // Generate JWT token
 const generateToken = (id) => {
@@ -94,6 +96,91 @@ export const subscribeNewsletter = async (req, res) => {
 
         await Newsletter.create({ email })
         res.status(201).json({ message: 'Subscribed successfully' })
+    } catch (error) {
+        res.status(500).json({ message: error.message })
+    }
+}
+
+// @desc    Forgot password
+// @route   POST /api/auth/forgot-password
+export const forgotPassword = async (req, res) => {
+    try {
+        const { email } = req.body
+        const user = await User.findOne({ email })
+
+        if (!user) {
+            return res.status(404).json({ message: 'No account found with that email' })
+        }
+
+        // Generate reset token
+        const resetToken = crypto.randomBytes(32).toString('hex')
+
+        // Hash token and save to user
+        user.resetPasswordToken = crypto.createHash('sha256').update(resetToken).digest('hex')
+        user.resetPasswordExpire = Date.now() + 15 * 60 * 1000 // 15 minutes
+
+        await user.save()
+
+        // Create reset URL
+        const resetUrl = `${process.env.CLIENT_URL}/reset-password/${resetToken}`
+
+        // Send email
+        const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+                user: process.env.EMAIL_USER,
+                pass: process.env.EMAIL_PASS,
+            },
+        })
+
+        await transporter.sendMail({
+            from: `FrankHub <${process.env.EMAIL_USER}>`,
+            to: user.email,
+            subject: 'Password Reset Request',
+            html: `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                    <h2 style="color: #ea2e0e;">FrankHub Password Reset</h2>
+                    <p>Hi ${user.name},</p>
+                    <p>You requested a password reset. Click the button below to reset your password.</p>
+                    <a href="${resetUrl}" style="display: inline-block; background-color: #ea2e0e; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold; margin: 16px 0;">
+                        Reset Password
+                    </a>
+                    <p>This link expires in <strong>15 minutes</strong>.</p>
+                    <p>If you didn't request this, please ignore this email.</p>
+                    <p>— The FrankHub Team</p>
+                </div>
+            `,
+        })
+
+        res.json({ message: 'Password reset email sent' })
+    } catch (error) {
+        res.status(500).json({ message: error.message })
+    }
+}
+
+// @desc    Reset password
+// @route   PUT /api/auth/reset-password/:token
+export const resetPassword = async (req, res) => {
+    try {
+        const resetPasswordToken = crypto.createHash('sha256').update(req.params.token).digest('hex')
+
+        const user = await User.findOne({
+            resetPasswordToken,
+            resetPasswordExpire: { $gt: Date.now() },
+        })
+
+        if (!user) {
+            return res.status(400).json({ message: 'Invalid or expired reset token' })
+        }
+
+        const salt = await bcrypt.genSalt(10)
+        user.password = await bcrypt.hash(req.body.password, salt)
+        user.resetPasswordToken = undefined
+        user.resetPasswordExpire = undefined
+
+        await user.save()
+
+        res.json({ message: 'Password reset successful' })
     } catch (error) {
         res.status(500).json({ message: error.message })
     }
