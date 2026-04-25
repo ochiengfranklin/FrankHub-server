@@ -3,7 +3,9 @@ import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import Newsletter from '../models/Newsletter.js'
 import crypto from 'crypto'
-import nodemailer from 'nodemailer'
+import { Resend } from 'resend'
+
+const resend = new Resend(process.env.RESEND_API_KEY)
 
 // Generate JWT token
 const generateToken = (id) => {
@@ -124,19 +126,9 @@ export const forgotPassword = async (req, res) => {
         // Create reset URL
         const resetUrl = `${process.env.CLIENT_URL}/reset-password/${resetToken}`
 
-        // Send email
-        const transporter = nodemailer.createTransport({
-            host: 'smtp.gmail.com',
-            port: 465,
-            secure: true,
-            auth: {
-                user: process.env.EMAIL_USER,
-                pass: process.env.EMAIL_PASS,
-            },
-        })
-
-        await transporter.sendMail({
-            from: `FrankHub <${process.env.EMAIL_USER}>`,
+        // Send email via Resend
+        await resend.emails.send({
+            from: 'FrankHub <onboarding@resend.dev>',
             to: user.email,
             subject: 'Password Reset Request',
             html: `
