@@ -11,7 +11,6 @@ import authRoutes from './routes/authRoutes.js'
 import productRoutes from './routes/productRoutes.js'
 import orderRoutes from './routes/orderRoutes.js'
 import rateLimit from 'express-rate-limit'
-import xss from 'xss-clean'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -48,9 +47,6 @@ const authLimiter = rateLimit({
 app.use('/api', limiter)
 app.use('/api/auth/login', authLimiter)
 app.use('/api/auth/register', authLimiter)
-
-// XSS protection
-app.use(xss())
 
 app.use(session({
     secret: process.env.JWT_SECRET,
