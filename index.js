@@ -11,7 +11,6 @@ import authRoutes from './routes/authRoutes.js'
 import productRoutes from './routes/productRoutes.js'
 import orderRoutes from './routes/orderRoutes.js'
 import rateLimit from 'express-rate-limit'
-import mongoSanitize from 'express-mongo-sanitize'
 import xss from 'xss-clean'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -23,6 +22,9 @@ connectDB()
 
 const app = express()
 
+// Trust Railway's proxy
+app.set('trust proxy', 1)
+
 app.use(cors({
     origin: process.env.CLIENT_URL || 'http://localhost:5173',
     credentials: true,
@@ -32,25 +34,23 @@ app.use(express.json())
 
 // Rate limiting
 const limiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // max 100 requests per 15 minutes
+    windowMs: 15 * 60 * 1000,
+    max: 100,
     message: { message: 'Too many requests, please try again later.' },
 })
 
 const authLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 10, // max 10 login/register attempts per 15 minutes
+    windowMs: 15 * 60 * 1000,
+    max: 10,
     message: { message: 'Too many attempts, please try again later.' },
 })
 
-// Apply rate limiting
 app.use('/api', limiter)
 app.use('/api/auth/login', authLimiter)
 app.use('/api/auth/register', authLimiter)
 
-// Sanitization
-app.use(mongoSanitize()) // prevent MongoDB operator injection
-app.use(xss()) // prevent XSS attacks
+// XSS protection
+app.use(xss())
 
 app.use(session({
     secret: process.env.JWT_SECRET,
